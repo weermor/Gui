@@ -132,30 +132,75 @@ local getcustomasset = getcustomasset or getsynasset
 local isfolder = isfolder or syn_isfolder or is_folder
 local makefolder = makefolder or make_folder or createfolder or create_folder
 
-    if success and Circle and Circle.Body then
-        writefile("Revenant/Circle.png", Circle.Body)
-        library:Notification({
-            Text = "Downloaded Toggle Circle Asset.",
-            Duration = 3
-        })
+-- Check if HTTP requests are supported
+local httpSupported = request ~= nil
+
+-- Default asset paths (in case assets can't be downloaded)
+local defaultCircleAsset = "rbxassetid://0" -- Replace with a default Roblox asset ID if available
+local defaultCollapseAsset = "rbxassetid://0" -- Replace with a default Roblox asset ID if available
+
+if not isfolder("Revenant") then
+    makefolder("Revenant")
+    if httpSupported then
+        local success, Circle = pcall(function()
+            return request({
+                Url = "https://github.com/Rain-Design/Libraries/blob/main/Icon/Circle.png?raw=true",
+                Method = "GET"
+            })
+        end)
+        if success and Circle and Circle.Body then
+            writefile("Revenant/Circle.png", Circle.Body)
+            library:Notification({
+                Text = "Downloaded Toggle Circle Asset.",
+                Duration = 3
+            })
+        else
+            library:Notification({
+                Text = "Failed to download Toggle Circle Asset. Using default asset.",
+                Duration = 3
+            })
+        end
+        local success, Collapse = pcall(function()
+            return request({
+                Url = "https://github.com/Rain-Design/Libraries/blob/main/Icon/CollapseArrow.png?raw=true",
+                Method = "GET"
+            })
+        end)
+        if success and Collapse and Collapse.Body then
+            writefile("Revenant/Collapse.png", Collapse.Body)
+            library:Notification({
+                Text = "Downloaded Collapse Asset.",
+                Duration = 3
+            })
+        else
+            library:Notification({
+                Text = "Failed to download Collapse Asset. Using default asset.",
+                Duration = 3
+            })
+        end
     else
         library:Notification({
-            Text = "Failed to download Toggle Circle Asset.",
-            Duration = 3
+            Text = "HTTP requests not supported. Please manually place Circle.png and Collapse.png in the Revenant folder.",
+            Duration = 5
         })
     end
-    if success and Collapse and Collapse.Body then
-        writefile("Revenant/Collapse.png", Collapse.Body)
-        library:Notification({
-            Text = "Downloaded Collapse Asset.",
-            Duration = 3
-        })
-    else
-        library:Notification({
-            Text = "Failed to download Collapse Asset.",
-            Duration = 3
-        })
+end
+
+-- Safe getcustomasset function
+local function safeGetCustomAsset(path)
+    if getcustomasset then
+        local success, result = pcall(getcustomasset, path)
+        if success then
+            return result
+        end
     end
+    -- Fallback to default asset if getcustomasset fails
+    if path == "Revenant/Circle.png" then
+        return defaultCircleAsset
+    elseif path == "Revenant/Collapse.png" then
+        return defaultCollapseAsset
+    end
+    return ""
 end
 
 function library:Window(Info)
@@ -571,7 +616,7 @@ function library:Window(Info)
 
         local innerFrame = Instance.new("ImageLabel")
         innerFrame.Name = "InnerFrame"
-        innerFrame.Image = getcustomasset("Revenant/Circle.png")
+        innerFrame.Image = safeGetCustomAsset("Revenant/Circle.png")
         innerFrame.ResampleMode = "Pixelated"
         innerFrame.ImageColor3 = Color3.fromRGB(255, 255, 255)
         innerFrame.BackgroundTransparency = 1
@@ -660,7 +705,7 @@ function library:Window(Info)
         dropdownText.TextColor3 = Color3.fromRGB(214, 214, 214)
         dropdownText.TextSize = 13
         dropdownText.TextXAlignment = Enum.TextXAlignment.Left
-        dropdownText.BackgroundColor3 = Color3.fromRGB(255, 255,  Warren
+        dropdownText.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
         dropdownText.BackgroundTransparency = 1
         dropdownText.Position = UDim2.fromScale(0.0489, 0)
         dropdownText.Size = UDim2.fromOffset(214, library.YSpacing)
@@ -668,7 +713,7 @@ function library:Window(Info)
 
         local dropdownContainerButton = Instance.new("ImageLabel")
         dropdownContainerButton.Name = "DropdownContainerButton"
-        dropdownContainerButton.Image = getcustomasset("Revenant/Collapse.png")
+        dropdownContainerButton.Image = safeGetCustomAsset("Revenant/Collapse.png")
         dropdownContainerButton.AnchorPoint = Vector2.new(1, .5)
         dropdownContainerButton.ImageColor3 = Color3.fromRGB(129, 129, 129)
         dropdownContainerButton.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
@@ -986,7 +1031,7 @@ function library:Window(Info)
 
         local insideslider = {}
         
-        library.Flags[Info.Flag] = Info.Default --: Set the flag to the default value
+        library.Flags[Info.Flag] = Info.Default
         
         local slider = Instance.new("Frame")
         slider.Name = "Slider"
@@ -1156,7 +1201,7 @@ function library:Window(Info)
 
     local close = Instance.new("ImageButton")
     close.Name = "Close"
-    close.Image = getcustomasset("Revenant/Collapse.png")
+    close.Image = safeGetCustomAsset("Revenant/Collapse.png")
     close.Active = true
     close.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
     close.BackgroundTransparency = 1
@@ -1177,18 +1222,14 @@ function library:Window(Info)
     return insidewindow
 end
 
--- Moved bindSystem to the end, after library is fully defined
 local bindSystem = {}
 
--- Table to store keybinds: { [elementName] = { key = Enum.KeyCode, type = "Button" or "Toggle", element = reference } }
 bindSystem.Binds = {}
 
--- Function to check if a key is valid (not in blacklist)
 local function isValidKey(keyCode)
     return not table.find(Blacklist, keyCode)
 end
 
--- Function to find a GUI element by name (Button or Toggle)
 local function findElementByName(name)
     for _, screenGui in pairs(game:GetService("CoreGui"):GetChildren()) do
         if screenGui.Name == "Revenant" then
@@ -1210,7 +1251,6 @@ local function findElementByName(name)
     return nil, nil
 end
 
--- Function to trigger a button or toggle action
 local function triggerElement(element, elementType)
     if elementType == "Button" then
         local button = element:FindFirstChild("ButtonTextButton")
@@ -1225,7 +1265,6 @@ local function triggerElement(element, elementType)
     end
 end
 
--- Function to add a keybind
 function bindSystem:AddBind(elementName, keyName)
     local keyCode = Enum.KeyCode[keyName]
     if not keyCode then
@@ -1250,14 +1289,12 @@ function bindSystem:AddBind(elementName, keyName)
         return
     end
 
-    -- Store the bind
     bindSystem.Binds[elementName] = { key = keyCode, type = elementType, element = element }
     if library.Notification then
         library:Notification({ Text = "Bound '" .. elementName .. "' to " .. keyName, Duration = 3 })
     end
 end
 
--- Function to remove a keybind
 function bindSystem:RemoveBind(elementName)
     if bindSystem.Binds[elementName] then
         bindSystem.Binds[elementName] = nil
@@ -1271,7 +1308,6 @@ function bindSystem:RemoveBind(elementName)
     end
 end
 
--- Listen for chat messages
 Player.Chatted:Connect(function(message)
     local args = message:split(" ")
     if args[1] == ".bind" and #args >= 2 then
@@ -1290,7 +1326,6 @@ Player.Chatted:Connect(function(message)
     end
 end)
 
--- Listen for key presses
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
     if gameProcessed then return end
     if input.UserInputType == Enum.UserInputType.Keyboard then
