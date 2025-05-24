@@ -19,6 +19,127 @@ for _,v in pairs(game:GetService("CoreGui"):GetChildren()) do
     end
 end
 
+-- Assuming the provided library is already loaded as 'library'
+local bindSystem = {}
+
+-- Table to store keybinds: { [elementName] = { key = Enum.KeyCode, type = "Button" or "Toggle", element = reference } }
+bindSystem.Binds = {}
+
+-- Blacklist of keys that cannot be used for binding
+local Blacklist = {
+    Enum.KeyCode.Unknown, Enum.KeyCode.CapsLock, Enum.KeyCode.Escape,
+    Enum.KeyCode.Tab, Enum.KeyCode.Return, Enum.KeyCode.Backspace,
+    Enum.KeyCode.Space, Enum.KeyCode.W, Enum.KeyCode.A,
+    Enum.KeyCode.S, Enum.KeyCode.D
+}
+
+-- Function to check if a key is valid (not in blacklist)
+local function isValidKey(keyCode)
+    return not table.find(Blacklist, keyCode)
+end
+
+-- Function to find a GUI element by name (Button or Toggle)
+local function findElementByName(name)
+    for _, screenGui in pairs(game:GetService("CoreGui"):GetChildren()) do
+        if screenGui.Name == "Revenant" then
+            local itemContainer = screenGui:FindFirstChild("Topbar", true)
+                and screenGui.Topbar:FindFirstChild("BackgroundFrame", true)
+                and screenGui.Topbar.BackgroundFrame:FindFirstChild("ItemContainer", true)
+            if itemContainer then
+                for _, element in pairs(itemContainer:GetChildren()) do
+                    if element:IsA("Frame") and (element.Name == "Button" or element.Name == "Toggle") then
+                        local textLabel = element:FindFirstChild(element.Name .. "TextLabel")
+                        if textLabel and textLabel.Text == name then
+                            return element, element.Name
+                        end
+                    end
+                end
+            end
+        end
+    end
+    return nil, nil
+end
+
+-- Function to trigger a button or toggle action
+local function triggerElement(element, elementType)
+    if elementType == "Button" then
+        local button = element:FindFirstChild("ButtonTextButton")
+        if button then
+            button:Fire("MouseButton1Click")
+        end
+    elseif elementType == "Toggle" then
+        local toggleButton = element:FindFirstChild("ToggleTextButton")
+        if toggleButton then
+            toggleButton:Fire("MouseButton1Click")
+        end
+    end
+end
+
+-- Function to add a keybind
+function bindSystem:AddBind(elementName, keyName)
+    local keyCode = Enum.KeyCode[keyName]
+    if not keyCode then
+        library:Notification({ Text = "Invalid key: " .. keyName, Duration = 3 })
+        return
+    end
+
+    if not isValidKey(keyCode) then
+        library:Notification({ Text = "Key " .. keyName .. " is blacklisted.", Duration = 3 })
+        return
+    end
+
+    local element, elementType = findElementByName(elementName)
+    if not element then
+        library:Notification({ Text = "Element '" .. elementName .. "' not found.", Duration = 3 })
+        return
+    end
+
+    -- Store the bind
+    bindSystem.Binds[elementName] = { key = keyCode, type = elementType, element = element }
+    library:Notification({ Text = "Bound '" .. elementName .. "' to " .. keyName, Duration = 3 })
+end
+
+-- Function to remove a keybind
+function bindSystem:RemoveBind(elementName)
+    if bindSystem.Binds[elementName] then
+        bindSystem.Binds[elementName] = nil
+        library:Notification({ Text = "Removed bind for '" .. elementName .. "'.", Duration = 3 })
+    else
+        library:Notification({ Text = "No bind found for '" .. elementName .. "'.", Duration = 3 })
+    end
+end
+
+-- Listen for chat messages
+Player.Chatted:Connect(function(message)
+    local args = message:split(" ")
+    if args[1] == ".bind" and #args >= 2 then
+        if args[2] == "add" and #args == 4 then
+            local elementName = args[3]
+            local keyName = args[4]
+            bindSystem:AddBind(elementName, keyName)
+        elseif args[2] == "remove" and #args == 3 then
+            local elementName = args[3]
+            bindSystem:RemoveBind(elementName)
+        else
+            library:Notification({ Text = "Usage: .bind add <name> <key> or .bind remove <name>", Duration = 3 })
+        end
+    end
+end)
+
+-- Listen for key presses
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+    if input.UserInputType == Enum.UserInputType.Keyboard then
+        for elementName, bind in pairs(bindSystem.Binds) do
+            if input.KeyCode == bind.key then
+                triggerElement(bind.element, bind.type)
+            end
+        end
+    end
+end)
+
+return bindSystem
+
 function library:GetXY(GuiObject)
 	local Max, May = GuiObject.AbsoluteSize.X, GuiObject.AbsoluteSize.Y
 	local Px, Py = math.clamp(Mouse.X - GuiObject.AbsolutePosition.X, 0, Max), math.clamp(Mouse.Y - GuiObject.AbsolutePosition.Y, 0, May)
@@ -32,116 +153,6 @@ function library:Toggle()
         end
     end
 end
-
-local gui = Instance.new("ScreenGui")
-gui.Name = "KeybindGUI"
-gui.Parent = game:GetService("CoreGui")
-
-local frame = Instance.new("Frame")
-frame.Size = UDim2.new(0, 200, 0, 50)
-frame.Position = UDim2.new(0.5, -100, 0.1, 0)
-frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-frame.Parent = gui
-
-local corner = Instance.new("UICorner")
-corner.CornerRadius = UDim.new(0, 4)
-corner.Parent = frame
-
-local toggleButton = Instance.new("TextButton")
-toggleButton.Size = UDim2.new(1, 0, 1, 0)
-toggleButton.BackgroundTransparency = 1
-toggleButton.Text = "Toggle [None]"
-toggleButton.Font = Enum.Font.GothamBold
-toggleButton.TextColor3 = Color3.fromRGB(200, 200, 200)
-toggleButton.TextSize = 14
-toggleButton.Parent = frame
-
-local toggleIndicator = Instance.new("Frame")
-toggleIndicator.Size = UDim2.new(0, 30, 0, 15)
-toggleIndicator.Position = UDim2.new(1, -40, 0.5, -7.5)
-toggleIndicator.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
-toggleIndicator.Parent = frame
-
-local indicatorCorner = Instance.new("UICorner")
-indicatorCorner.CornerRadius = UDim.new(1, 0)
-indicatorCorner.Parent = toggleIndicator
-
-local toggleCircle = Instance.new("Frame")
-toggleCircle.Size = UDim2.new(0, 10, 0, 10)
-toggleCircle.Position = UDim2.new(0, 2, 0, 2.5)
-toggleCircle.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-toggleCircle.Parent = toggleIndicator
-
-local circleCorner = Instance.new("UICorner")
-circleCorner.CornerRadius = UDim.new(1, 0)
-circleCorner.Parent = toggleCircle
-
--- Full-screen prompt
-local promptScreen = Instance.new("ScreenGui")
-promptScreen.Name = "KeybindPrompt"
-promptScreen.Parent = game:GetService("CoreGui")
-promptScreen.Enabled = false
-
-local promptText = Instance.new("TextLabel")
-promptText.Size = UDim2.new(1, 0, 1, 0)
-promptText.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-promptText.BackgroundTransparency = 0.5
-promptText.Text = "Which letter should I use?"
-promptText.TextColor3 = Color3.fromRGB(255, 255, 255)
-promptText.TextSize = 50
-promptText.Font = Enum.Font.GothamBold
-promptText.ZIndex = 1000
-promptText.Parent = promptScreen
-
--- Variables
-local Toggled = false
-local PressKey = nil
-local Changing = false
-local KeybindConnection
-
--- Toggle function
-local function toggleState()
-    Toggled = not Toggled
-    TweenService:Create(toggleCircle, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.InOut), {Position = Toggled and UDim2.new(0, 18, 0, 2.5) or UDim2.new(0, 2, 0, 2.5)}):Play()
-    TweenService:Create(toggleIndicator, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.InOut), {BackgroundColor3 = Toggled and Color3.fromRGB(56, 207, 154) or Color3.fromRGB(60, 60, 60)}):Play()
-end
-
--- Mouse wheel keybind
-toggleButton.MouseButton3Click:Connect(function()
-    if KeybindConnection then KeybindConnection:Disconnect() end
-    Changing = true
-    toggleButton.Text = "Toggle [...]"
-    promptScreen.Enabled = true
-    KeybindConnection = UserInputService.InputBegan:Connect(function(Key, gameProcessed)
-        if not table.find(Blacklist, Key.KeyCode) and not gameProcessed then
-            KeybindConnection:Disconnect()
-            PressKey = Key.KeyCode
-            toggleButton.Text = "Toggle [" .. Key.KeyCode.Name .. "]"
-            promptScreen.Enabled = false
-            wait(0.1)
-            Changing = false
-        end
-    end)
-end)
-
--- Toggle on left click
-toggleButton.MouseButton1Click:Connect(toggleState)
-
--- Keybind toggle
-UserInputService.InputBegan:Connect(function(Key, gameProcessed)
-    if not Changing and Key.KeyCode == PressKey and not gameProcessed then
-        toggleState()
-    end
-end)
-
--- Hover effects
-frame.MouseEnter:Connect(function()
-    frame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-end)
-
-frame.MouseLeave:Connect(function()
-    frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-end)
 
 if not game:GetService("CoreGui"):FindFirstChild("NotificationLibrary") then
 local notificationLibrary = Instance.new("ScreenGui")
