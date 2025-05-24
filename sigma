@@ -5,6 +5,7 @@ library.YSpacing = 38
 
 local Players = game:GetService("Players")
 local Player = Players.LocalPlayer
+local UserInputService = game:GetService("UserInputService")
 
 local Mouse = Player:GetMouse()
 
