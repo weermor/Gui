@@ -144,12 +144,6 @@ local makefolder = makefolder or make_folder or createfolder or create_folder
             Duration = 3
         })
     end
-    local success, Collapse = pcall(function()
-        return request({
-            Url = "https://github.com/Rain-Design/Libraries/blob/main/Icon/CollapseArrow.png?raw=true",
-            Method = "GET"
-        })
-    end)
     if success and Collapse and Collapse.Body then
         writefile("Revenant/Collapse.png", Collapse.Body)
         library:Notification({
