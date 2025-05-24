@@ -132,14 +132,6 @@ local getcustomasset = getcustomasset or getsynasset
 local isfolder = isfolder or syn_isfolder or is_folder
 local makefolder = makefolder or make_folder or createfolder or create_folder
 
-if not isfolder("Revenant") then
-    makefolder("Revenant")
-    local success, Circle = pcall(function()
-        return request({
-            Url = "https://github.com/Rain-Design/Libraries/blob/main/Icon/Circle.png?raw=true",
-            Method = "GET"
-        })
-    end)
     if success and Circle and Circle.Body then
         writefile("Revenant/Circle.png", Circle.Body)
         library:Notification({
